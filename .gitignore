@@ -3,3 +3,6 @@ venv/
 env/
 .venv/
 .python-version
+__pycache__
+ambiente_final
+novo_ambiente

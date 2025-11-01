@@ -3,7 +3,9 @@ from datetime import datetime
 import pandas as pd
 import os
 
+# Função de análise de IA simulada (ou real se a API funcionar)
 def analisar_log_com_gemini(log_data):
+    # Esta função será substituída pela chamada real no app.py
     return (
         "🤖 **Consultor Energético IA - Análise Rápida**\n\n"
         "Com base nos dados de Geração/Consumo dos últimos minutos:\n"
@@ -16,6 +18,7 @@ class SmartHome:
         self.capacidade_bateria = 10000 
         self.nivel_bateria = 7000  
         self.taxa_carga_max = 5000  
+        self.fator_escala_solar = 3.0 
 
         self.aparelhos = {
             "Geladeira": {"estado": "Ligado", "consumo": 150},
@@ -26,33 +29,28 @@ class SmartHome:
         
         self.energia_autoconsumida_wh = 0
         self.gasto_total_rede_wh = 0
+        
+        # 🟢 VARIÁVEIS DE ACÚMULO DO CO2 EVITADO (CORRETO) 🟢
+        self.energia_solar_total_wh_acumulada = 0 
+        self.fator_emissao_co2_kg_wh = 0.00012 # 0.12 kg CO2 / kWh
+        
         self.dados_solares = self._carregar_dados_solares()
         
-        # Fator de escala: O PVGIS simulou 1kWp, assumimos que seu sistema é 3kWp.
-        self.fator_escala_solar = 3.0 
-        
     def _carregar_dados_solares(self):
-        # NOME DO ARQUIVO AJUSTADO PARA O NOME QUE VOCÊ FORNECEU
         csv_path = 'solar data.csv' 
-
         try:
-            # Separador é vírgula (','), ignorando as 8 linhas de cabeçalho
             df = pd.read_csv(csv_path, sep=',', skiprows=8) 
-            
-            # Garante que a coluna 'time' é datetime
             df['time'] = pd.to_datetime(df['time'], format='%Y%m%d:%H%M')
             
-            # Filtra apenas o primeiro dia para usar como perfil diário
             primeiro_dia = df['time'].dt.date.min()
             df_dia = df[df['time'].dt.date == primeiro_dia]
             
-            # Cria um dicionário {hora: G(i) (Irradiação)} para busca rápida
             dados_horarios = df_dia.set_index(df_dia['time'].dt.hour)['G(i)'].to_dict()
             return dados_horarios
 
         except Exception as e:
-            print(f"Erro ao carregar CSV do PVGIS: {e}. Verifique o nome do arquivo. Usando simulação padrão.")
-            # Fallback (caso o arquivo não seja encontrado ou haja erro de leitura)
+            # Em caso de erro, usa dados de simulação padrão
+            print(f"Erro ao carregar CSV do PVGIS: {e}. Usando simulação padrão.")
             return {
                 8: 100, 9: 500, 10: 1500, 11: 2200, 12: 3000, 
                 13: 2800, 14: 1800, 15: 1000, 16: 400, 17: 50
@@ -60,11 +58,7 @@ class SmartHome:
 
     def simular_energia_solar(self):
         hora_atual = datetime.now().hour
-
-        # G(i) é a Irradiação em W/m² (Potência para 1kWp)
         irradiacao_wi = self.dados_solares.get(hora_atual, 0)
-        
-        # Escala: Multiplica pela escala do seu sistema (3kWp)
         geracao_base = irradiacao_wi * self.fator_escala_solar
 
         if geracao_base > 0:
@@ -126,7 +120,6 @@ class SmartHome:
         geracao_atual = self.simular_energia_solar()
         
         if nivel_percentual < 25 and geracao_atual < 500:
-            
             aparelhos_desligados = []
             
             if self.aparelhos["Chuveiro"]["estado"] == "Ligado":

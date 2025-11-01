@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import time # Importação necessária para o sleep e auto-refresh
 from dotenv import load_dotenv 
 from google import genai
 from google.genai.errors import APIError
 
-from casa_inteligente import SmartHome # Apenas SmartHome é importado agora
+from casa_inteligente import SmartHome
 
 load_dotenv()
 
@@ -51,7 +52,6 @@ def registrar_log(geracao, consumo):
 def call_gemini_api(log_data_prompt):
     """Implementação real da API Gemini."""
     
-    # Tenta carregar a chave da variável de ambiente (GEMINI_API_KEY)
     gemini_key = os.getenv("GEMINI_API_KEY")
 
     if not gemini_key:
@@ -65,7 +65,7 @@ def call_gemini_api(log_data_prompt):
     try:
         client = genai.Client(api_key=gemini_key) 
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # Modelo rápido e eficiente para esta tarefa
+            model='gemini-2.5-flash', 
             contents=[log_data_prompt]
         )
         return "🤖 **Análise de Log - Resposta Gemini:**\n\n" + response.text
@@ -83,16 +83,25 @@ def call_gemini_api(log_data_prompt):
 st.title("⚡ Solução Final Integrada - Goodwe Smart Home (Sprint 4)")
 st.caption(f"Simulação de Dados em Tempo Real e Algoritmo Preditivo: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
+
 home = carregar_estado()
 
-# 1. Cálculos de Fluxo
+# 1. Simulação
 geracao_solar = home.simular_energia_solar()
 consumo_total = home.calcular_consumo_total()
+
+# 🟢 LÓGICA DE ACÚMULO DO CO2 EVITADO (CORRETA) 🟢
+# 1. Acumula a energia solar total gerada (fonte da economia de CO2)
+home.energia_solar_total_wh_acumulada += geracao_solar
+
+# 2. Calcula o CO2 acumulado (sempre acumulativo)
+co2_evitado_acumulado = home.energia_solar_total_wh_acumulada * home.fator_emissao_co2_kg_wh
+
+# --- Continuar o Fluxo e Atualizar Estado ---
 nivel_bateria_perc, gasto_rede = home.atualizar_bateria(geracao_solar, consumo_total)
 registrar_log(geracao_solar, consumo_total)
 
 
-# --- Seção 1: Arquitetura e Fluxo de Energia ---
 st.header("1. Fluxo de Energia e Arquitetura Goodwe")
 
 # Justificativa de Hardware (Requisito Goodwe)
@@ -128,13 +137,11 @@ col_rede.metric(
     delta="Cuidado! Usando a Rede." if gasto_rede > 0 else "Energia 100% Própria."
 )
 
-# KPI de Sustentabilidade (Requisito Sustentabilidade)
-# 0.0005 kg CO2/Wh é uma simulação de fator de emissão médio
-co2_evitado = home.energia_autoconsumida_wh * 0.000005 
+# KPI de Sustentabilidade (CORRIGIDO PARA O CÁLCULO ACUMULATIVO)
 col_sust.metric(
     label="🌿 CO2 Evitado (kg)",
-    value=f"{co2_evitado:.2f}",
-    delta="Autoconsumo: Alta Eficiência.",
+    value=f"{co2_evitado_acumulado:.2f}",
+    delta=f"Fator: {home.fator_emissao_co2_kg_wh:.5f} kg/Wh", 
     delta_color="normal"
 )
 
@@ -153,7 +160,7 @@ st.markdown("---")
 # --- Seção 2: Controle, Automação e Otimização (A Inovação) ---
 st.header("2. Otimização Inteligente e Controle de Carga")
 
-# BOTÃO DE OTIMIZAÇÃO (O ALGORITMO PREDITIVO)
+
 col_btn, col_msg = st.columns([1, 2])
 
 with col_btn:
@@ -162,7 +169,7 @@ with col_btn:
         st.session_state.otimizacao_status = mensagem_otimizacao # Armazena o resultado
         st.rerun()
 
-# Exibe o status da otimização
+
 if 'otimizacao_status' in st.session_state:
     with col_msg:
         if "Ativada" in st.session_state.otimizacao_status:
@@ -193,7 +200,7 @@ for nome, dados in home.aparelhos.items():
 st.markdown("---")
 
 
-# --- Seção 3: Consultor Energético IA (A Inovação de Alto Impacto) ---
+
 st.header("3. Consultor Energético IA (Análise Preditiva)")
 
 col_ai_btn, col_ai_analise = st.columns([1, 2])
@@ -201,9 +208,9 @@ col_ai_btn, col_ai_analise = st.columns([1, 2])
 with col_ai_btn:
     if st.button("🧠 Gerar Análise de Logs (IA Gemini)", use_container_width=True):
         st.session_state.ia_analise = "Analisando dados com Gemini..."
-        # Pega o log formatado da SmartHome
+        
         log_prompt = home.get_log_for_ai(st.session_state.log_potencia)
-        # Chama a função que contém a API
+      
         st.session_state.ia_analise = call_gemini_api(log_prompt) 
 
 with col_ai_analise:
@@ -218,3 +225,8 @@ st.dataframe(
     st.session_state.log_potencia.sort_values(by='Tempo', ascending=False),
     hide_index=True
 )
+
+# 7. Auto-Atualização
+# Força o Streamlit a recarregar a cada 5 segundos para simular o tempo real
+time.sleep(5)
+st.rerun()
