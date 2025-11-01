@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import time # Importação necessária para o sleep e auto-refresh
+import time 
 from dotenv import load_dotenv 
 from google import genai
 from google.genai.errors import APIError
