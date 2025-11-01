@@ -6,11 +6,11 @@ Este projeto implementa um sistema de gerenciamento de energia (Home Energy Mana
 
 ---
 
-## 👥 Equipe Envolvida
+## 👥 Equipe 
 
-* **Membro:** [Seu Nome Completo]
-* **RA:** [Seu RA]
-* **Disciplina:** [Nome da Disciplina, ex: Inovação e Sustentabilidade / Engenharia de Software]
+* **Membros:** [Igor Zuvela, João Vitor, Miguel Vanucci, Giovanna Fernandes]
+* **RM:** [563602, 566541, 563491, 565434]
+* **Disciplina:** [Pensamento Computacional e automação com python]
 
 ---
 
